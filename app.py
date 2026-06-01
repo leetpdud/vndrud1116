@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 
-# 1. 페이지 제목 및 요청하신 문구 (디자인 레이아웃 모두 제거)
+# 1. 메인 타이틀 및 안내 문구
 st.title("인스타 맞팔 확인 확장기")
 
 st.markdown("""
@@ -11,24 +11,22 @@ st.markdown("""
 
 st.markdown("---")
 
-# 2. 순정 파일 업로드 구역
+# 2. 파일 업로드 구역
 following_file = st.file_uploader("following.json 파일을 올려주세요.", type=["json"])
 followers_file = st.file_uploader("followers.json 파일을 올려주세요.", type=["json"])
 
-# 3. ⭐️ 어제 272명 성공했던 오리지널 파싱 공식 100% 복구
+# 3. 어제 272명 백발백중으로 잡아내던 오리지널 분석 로직
 if following_file and followers_file:
     try:
         following_data = json.load(following_file)
         followers_data = json.load(followers_file)
         
         following_list = []
-        # [핵심 복구] 어제 272명을 완벽하게 잡아내던 그 열쇠 구역입니다.
         if 'relationships_following' in following_data:
             for item in following_data['relationships_following']:
                 following_list.append(item['string_list_data'][0]['value'])
                 
         followers_list = []
-        # 어제 성공했던 리스트 순회 파싱 공식 그대로 복구
         for item in followers_data:
             followers_list.append(item['string_list_data'][0]['value'])
         
