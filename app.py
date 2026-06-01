@@ -1,13 +1,7 @@
 import streamlit as st
 import json
 
-# 1. 스트림릿 내부 버그 및 캐시를 강제로 비우기 위한 설정
-st.cache_data.clear()  # 기존에 브라우저가 잘못 기억하고 있는 파일 데이터 강제 삭제
-
-# 2. 웹페이지 레이아웃 설정
-st.set_page_config(page_title="인스타 맞팔 확인 확장기", layout="wide")
-
-# 3. 메인 타이틀 및 수정 요청하신 안내 문구
+# 1. 메인 타이틀 및 수정 요청하신 안내 문구 (그 외 디자인 코드 전부 삭제)
 st.title("인스타 맞팔 확인 확장기")
 
 st.markdown("""
@@ -15,19 +9,13 @@ st.markdown("""
 **내 데이터는 물론, 다른 사람의 파일도 확실하게 분석합니다.** *(데이터는 서버에 저장되지않고 즉시 작동 합니다.)*
 """)
 
-st.markdown("---") # 구분선
+st.markdown("---")
 
-# 4. 파일 업로드 구역 (좌우 2단 배치 레이아웃)
-col1, col2 = st.columns(2)
+# 2. 어제 완벽하게 작동했던 완전 최초의 순정 파일 업로드 구역
+following_file = st.file_uploader("following.json 파일을 올려주세요.", type=["json"])
+followers_file = st.file_uploader("followers.json 파일을 올려주세요.", type=["json"])
 
-with col1:
-    following_file = st.file_uploader("following.json 파일을 올려주세요.", type=["json"], key="original_following_key")
-
-with col2:
-    followers_file = st.file_uploader("followers.json 파일을 올려주세요.", type=["json"], key="original_followers_key")
-
-
-# ⭐ 어제 272명 정확하게 나오던 오리지널 분석 로직 100% 원본 그대로 유지
+# 3. ⭐️ 어제 272명 백발백중으로 잡아내던 오리지널 분석 로직
 if following_file and followers_file:
     try:
         following_data = json.load(following_file)
@@ -39,7 +27,7 @@ if following_file and followers_file:
                 following_list.append(item['string_list_data'][0]['value'])
                 
         followers_list = []
-        # 어제 성공했던 껍데기 없는 순수 리스트 파싱 공식
+        # 어제 성공했던 리스트 순회 파싱 공식 그대로 유지
         for item in followers_data:
             followers_list.append(item['string_list_data'][0]['value'])
         
