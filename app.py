@@ -44,35 +44,47 @@ with col1:
 with col2:
     followers_file = str.file_uploader("followers.json 파일을 올려주세요.", type=["json"])
 
-# 6. 데이터 분석 및 결과 출력 로직 (다양한 인스타 파일 형식 완벽 지원)
+# 💡 안전하게 유저네임을 추출하는 보조 함수 (value 에러 원천 차단)
+def extract_username(item):
+    if 'string_list_data' in item and item['string_list_data']:
+        data_dict = item['string_list_data'][0]
+        # 1. 기존의 'value' 키 확인
+        if 'value' in data_dict:
+            return data_dict['value']
+        # 2. 최신 버전의 'href' 키 확인 (웹 주소 형태에서 아이디만 추출)
+        elif 'href' in data_dict:
+            href_val = data_dict['href']
+            return href_val.split('instagram.com/')[-1].strip('/')
+    # 3. 구조가 아예 예외적일 때 글자 그대로 반환 시도
+    return str(item)
+
+# 6. 데이터 분석 및 결과 출력 로직
 if following_file and followers_file:
     try:
         following_data = json.load(following_file)
         followers_data = json.load(followers_file)
         
         following_list = []
-        # 형식 1: relationships_following 키가 있는 경우
         if isinstance(following_data, dict) and 'relationships_following' in following_data:
             for item in following_data['relationships_following']:
-                following_list.append(item['string_list_data'][0]['value'])
-        # 형식 2: 리스트 형태로 바로 시작하는 최신 형식인 경우
+                following_list.append(extract_username(item))
         elif isinstance(following_data, list):
             for item in following_data:
-                if 'string_list_data' in item:
-                    following_list.append(item['string_list_data'][0]['value'])
+                following_list.append(extract_username(item))
                 
         followers_list = []
-        # 형식 1: relationships_followers 키가 있는 경우
         if isinstance(followers_data, dict) and 'relationships_followers' in followers_data:
             for item in followers_data['relationships_followers']:
-                followers_list.append(item['string_list_data'][0]['value'])
-        # 형식 2: 리스트 형태로 바로 시작하는 최신 형식인 경우
+                followers_list.append(extract_username(item))
         elif isinstance(followers_data, list):
             for item in followers_data:
-                if 'string_list_data' in item:
-                    followers_list.append(item['string_list_data'][0]['value'])
+                followers_list.append(extract_username(item))
         
-        # 중복 제거 후 맞팔 안 한 사람 계산
+        # 빈 문자열이나 에러로 인한 노이즈 제거
+        following_list = [name for name in following_list if name and not name.startswith('{')]
+        followers_list = [name for name in followers_list if name and not name.startswith('{')]
+        
+        # 맞팔 안 한 사람 계산
         unfollowers = list(set(following_list) - set(followers_list))
         
         str.markdown("---")
@@ -92,4 +104,4 @@ if following_file and followers_file:
             str.success("🎉 축하합니다! 내가 팔로우한 모든 사람이 회원님을 맞팔하고 있습니다.")
             
     except Exception as e:
-        str.error(f"파일을 분석하는 중에 오류가 발생했습니다. 개발자에게 문의해 주세요. (에러 내용: {e})")
+        str.error(f"파일을 분석하는 중에 예기치 못한 오류가 발생했습니다. (에러 내용: {e})")
