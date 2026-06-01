@@ -1,23 +1,23 @@
-import streamlit as str
+import streamlit as st
 import json
 
-# 1. 웹페이지 기본 설정
-str.set_page_config(page_title="인스타 맞팔 확인 확장기", layout="wide")
+# 1. 웹페이지 기본 설정 (디자인)
+st.set_page_config(page_title="인스타 맞팔 확인 확장기", layout="wide")
 
-# 2. 메인 타이틀
-str.title("인스타 맞팔 확인 확장기")
+# 2. 메인 타이틀 (요청하신 대로 이모티콘 제거)
+st.title("인스타 맞팔 확인 확장기")
 
-# 3. 안내 문구
-str.markdown("""
+# 3. 요청하신 문구로 깔끔하게 변경
+st.markdown("""
 인스타그램에서 다운로드한 following.json과 followers.json파일을 올려주세요.  
 **내 데이터는 물론, 다른 사람의 파일도 확실하게 분석합니다.** *(데이터는 서버에 저장되지않고 즉시 작동 합니다.)*
 """)
 
-str.markdown("---") # 구분선
+st.markdown("---") # 구분선
 
-# 4. 인스타그램 데이터 다운로드 가이드라인
-with str.expander("ℹ️ 인스타그램에서 데이터 파일(JSON) 다운로드하는 방법 보기", expanded=False):
-    str.markdown("""
+# 4. 회원님이 직접 검증하신 완벽한 인스타그램 데이터 다운로드 가이드라인
+with st.expander("ℹ️ 인스타그램에서 데이터 파일(JSON) 다운로드하는 방법 보기", expanded=False):
+    st.markdown("""
     프로그램을 이용하려면 인스타그램에서 회원님의 데이터를 먼저 다운로드하셔야 합니다. 아래 순서대로 천천히 따라 해보세요!
     
     1. **인스타그램에 접속**합니다.
@@ -33,107 +33,51 @@ with str.expander("ℹ️ 인스타그램에서 데이터 파일(JSON) 다운로
     11. 파일 이름이 정확해졌다면, 아래 웹사이트 안내에 따라 파일 2개를 각각 올려주시면 됩니다!
     """)
 
-str.markdown("<br>", unsafe_allow_html=True) # 여백
+st.markdown("<br>", unsafe_allow_html=True) # 여백
 
-# 5. 파일 업로드 구역 (좌우 2단 레이아웃)
-col1, col2 = str.columns(2)
+# 5. 파일 업로드 구역 (디자인: 좌우 2단 레이아웃 배치)
+col1, col2 = st.columns(2)
 
 with col1:
-    following_file = str.file_uploader("following.json 파일을 올려주세요.", type=["json"])
+    following_file = st.file_uploader("following.json 파일을 올려주세요.", type=["json"])
 
 with col2:
-    followers_file = str.file_uploader("followers.json 파일을 올려주세요.", type=["json"])
+    followers_file = st.file_uploader("followers.json 파일을 올려주세요.", type=["json"])
 
-# 💡 인스타 파일 내부의 모든 형태에서 아이디를 정확히 뽑아내는 보조 함수
-def extract_username(item):
-    # 1. 딕셔너리 구조인 경우 내부 탐색
-    if isinstance(item, dict):
-        if 'string_list_data' in item and item['string_list_data']:
-            data_dict = item['string_list_data'][0]
-            if 'value' in data_dict:
-                return data_dict['value']
-            elif 'href' in data_dict:
-                return data_dict['href'].split('instagram.com/')[-1].strip('/')
-        # 'string_list_data'가 없는 변형 구조 처리
-        if 'value' in item:
-            return item['value']
-        if 'href' in item:
-            return item['href'].split('instagram.com/')[-1].strip('/')
-    # 2. 문자열 자체로 들어온 경우
-    elif isinstance(item, str):
-        return item
-    return None
-
-# 6. 데이터 분석 및 결과 출력 로직
+# 6. ⭐ 어제 272명으로 완벽하게 작동하던 원본 분석 로직 (그대로 유지)
 if following_file and followers_file:
     try:
         following_data = json.load(following_file)
         followers_data = json.load(followers_file)
         
         following_list = []
-        # following 파일 데이터 파싱
-        if isinstance(following_data, dict):
-            # 대문자/소문자 모든 형태의 키 지원
-            keys = ['relationships_following', 'following', 'relationships_following_users']
-            target_key = next((k for k in keys if k in following_data), None)
-            if target_key:
-                for item in following_data[target_key]:
-                    name = extract_username(item)
-                    if name: following_list.append(name)
-            else:
-                # 딕셔너리인데 키를 못 찾을 경우 내부 값들 전체 뒤지기
-                for val in following_data.values():
-                    if isinstance(val, list):
-                        for item in val:
-                            name = extract_username(item)
-                            if name: following_list.append(name)
-        elif isinstance(following_data, list):
-            for item in following_data:
-                name = extract_username(item)
-                if name: following_list.append(name)
+        if 'relationships_following' in following_data:
+            for item in following_data['relationships_following']:
+                following_list.append(item['string_list_data'][0]['value'])
                 
         followers_list = []
-        # followers 파일 데이터 파싱
-        if isinstance(followers_data, dict):
-            keys = ['relationships_followers', 'followers', 'relationships_followers_users']
-            target_key = next((k for k in keys if k in followers_data), None)
-            if target_key:
-                for item in followers_data[target_key]:
-                    name = extract_username(item)
-                    if name: followers_list.append(name)
-            else:
-                for val in followers_data.values():
-                    if isinstance(val, list):
-                        for item in val:
-                            name = extract_username(item)
-                            if name: followers_list.append(name)
-        elif isinstance(followers_data, list):
-            for item in followers_data:
-                name = extract_username(item)
-                if name: followers_list.append(name)
-        
-        # 공백이나 비정상 텍스트 필터링
-        following_list = [name for name in following_list if name and not name.startswith('{')]
-        followers_list = [name for name in followers_list if name and not name.startswith('{')]
+        # 어제 정상 작동하던 데이터 파싱 구조 그대로 유지
+        for item in followers_data:
+            followers_list.append(item['string_list_data'][0]['value'])
         
         # 맞팔 안 한 사람 계산
         unfollowers = list(set(following_list) - set(followers_list))
         
-        str.markdown("---")
-        str.subheader("📊 분석 결과")
+        st.markdown("---")
+        st.subheader("📊 분석 결과")
         
-        res_col1, res_col2, res_col3 = str.columns(3)
+        res_col1, res_col2, res_col3 = st.columns(3)
         res_col1.metric("내가 팔로잉하는 사람", f"{len(following_list)}명")
         res_col2.metric("나를 팔로우하는 사람", f"{len(followers_list)}명")
         res_col3.metric("나를 맞팔하지 않는 사람", f"{len(unfollowers)}명")
         
-        str.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
         
         if unfollowers:
-            str.error("🚫 나를 맞팔하지 않고 있는 계정 목록입니다:")
-            str.dataframe(unfollowers, column_config={"value": "사용자 아이디(Username)"}, use_container_width=True)
+            st.error("🚫 나를 맞팔하지 않고 있는 계정 목록입니다:")
+            st.dataframe(unfollowers, column_config={"value": "사용자 아이디(Username)"}, use_container_width=True)
         else:
-            str.success("🎉 축하합니다! 내가 팔로우한 모든 사람이 회원님을 맞팔하고 있습니다.")
+            st.success("🎉 축하합니다! 내가 팔로우한 모든 사람이 회원님을 맞팔하고 있습니다.")
             
     except Exception as e:
-        str.error(f"파일을 분석하는 중에 예기치 못한 오류가 발생했습니다. (에러 내용: {e})")
+        st.error("파일을 분석하는 중에 오류가 발생했습니다. 인스타그램에서 다운로드한 원본 JSON 파일이 맞는지 확인해 주세요.")
