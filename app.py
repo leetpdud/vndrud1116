@@ -44,19 +44,25 @@ with col1:
 with col2:
     followers_file = str.file_uploader("followers.json 파일을 올려주세요.", type=["json"])
 
-# 💡 안전하게 유저네임을 추출하는 보조 함수 (value 에러 원천 차단)
+# 💡 인스타 파일 내부의 모든 형태에서 아이디를 정확히 뽑아내는 보조 함수
 def extract_username(item):
-    if 'string_list_data' in item and item['string_list_data']:
-        data_dict = item['string_list_data'][0]
-        # 1. 기존의 'value' 키 확인
-        if 'value' in data_dict:
-            return data_dict['value']
-        # 2. 최신 버전의 'href' 키 확인 (웹 주소 형태에서 아이디만 추출)
-        elif 'href' in data_dict:
-            href_val = data_dict['href']
-            return href_val.split('instagram.com/')[-1].strip('/')
-    # 3. 구조가 아예 예외적일 때 글자 그대로 반환 시도
-    return str(item)
+    # 1. 딕셔너리 구조인 경우 내부 탐색
+    if isinstance(item, dict):
+        if 'string_list_data' in item and item['string_list_data']:
+            data_dict = item['string_list_data'][0]
+            if 'value' in data_dict:
+                return data_dict['value']
+            elif 'href' in data_dict:
+                return data_dict['href'].split('instagram.com/')[-1].strip('/')
+        # 'string_list_data'가 없는 변형 구조 처리
+        if 'value' in item:
+            return item['value']
+        if 'href' in item:
+            return item['href'].split('instagram.com/')[-1].strip('/')
+    # 2. 문자열 자체로 들어온 경우
+    elif isinstance(item, str):
+        return item
+    return None
 
 # 6. 데이터 분석 및 결과 출력 로직
 if following_file and followers_file:
@@ -65,22 +71,48 @@ if following_file and followers_file:
         followers_data = json.load(followers_file)
         
         following_list = []
-        if isinstance(following_data, dict) and 'relationships_following' in following_data:
-            for item in following_data['relationships_following']:
-                following_list.append(extract_username(item))
+        # following 파일 데이터 파싱
+        if isinstance(following_data, dict):
+            # 대문자/소문자 모든 형태의 키 지원
+            keys = ['relationships_following', 'following', 'relationships_following_users']
+            target_key = next((k for k in keys if k in following_data), None)
+            if target_key:
+                for item in following_data[target_key]:
+                    name = extract_username(item)
+                    if name: following_list.append(name)
+            else:
+                # 딕셔너리인데 키를 못 찾을 경우 내부 값들 전체 뒤지기
+                for val in following_data.values():
+                    if isinstance(val, list):
+                        for item in val:
+                            name = extract_username(item)
+                            if name: following_list.append(name)
         elif isinstance(following_data, list):
             for item in following_data:
-                following_list.append(extract_username(item))
+                name = extract_username(item)
+                if name: following_list.append(name)
                 
         followers_list = []
-        if isinstance(followers_data, dict) and 'relationships_followers' in followers_data:
-            for item in followers_data['relationships_followers']:
-                followers_list.append(extract_username(item))
+        # followers 파일 데이터 파싱
+        if isinstance(followers_data, dict):
+            keys = ['relationships_followers', 'followers', 'relationships_followers_users']
+            target_key = next((k for k in keys if k in followers_data), None)
+            if target_key:
+                for item in followers_data[target_key]:
+                    name = extract_username(item)
+                    if name: followers_list.append(name)
+            else:
+                for val in followers_data.values():
+                    if isinstance(val, list):
+                        for item in val:
+                            name = extract_username(item)
+                            if name: followers_list.append(name)
         elif isinstance(followers_data, list):
             for item in followers_data:
-                followers_list.append(extract_username(item))
+                name = extract_username(item)
+                if name: followers_list.append(name)
         
-        # 빈 문자열이나 에러로 인한 노이즈 제거
+        # 공백이나 비정상 텍스트 필터링
         following_list = [name for name in following_list if name and not name.startswith('{')]
         followers_list = [name for name in followers_list if name and not name.startswith('{')]
         
