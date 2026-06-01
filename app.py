@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 
-# 1. 메인 타이틀 및 수정 요청하신 안내 문구 (그 외 디자인 코드 전부 삭제)
+# 1. 메인 타이틀 및 수정 요청하신 안내 문구
 st.title("인스타 맞팔 확인 확장기")
 
 st.markdown("""
@@ -11,27 +11,52 @@ st.markdown("""
 
 st.markdown("---")
 
-# 2. 어제 완벽하게 작동했던 완전 최초의 순정 파일 업로드 구역
+# 2. 파일 업로드 구역
 following_file = st.file_uploader("following.json 파일을 올려주세요.", type=["json"])
 followers_file = st.file_uploader("followers.json 파일을 올려주세요.", type=["json"])
 
-# 3. ⭐️ 어제 272명 백발백중으로 잡아내던 오리지널 분석 로직
+# 💡 어떤 형식의 인스타 파일이 들어와도 안전하게 데이터를 추출하는 공식
+def get_instagram_list(data, key_name):
+    # 형식 A: 대괄호 [ ] 로 바로 시작하는 리스트 형태인 경우
+    if isinstance(data, list):
+        return data
+    # 형식 B: 중괄호 { } 로 시작하고 내부에 키가 존재하는 경우
+    elif isinstance(data, dict):
+        if key_name in data:
+            return data[key_name]
+        elif 'relationships_' + key_name in data:
+            return data['relationships_' + key_name]
+        # 그 외에 다른 키 안에 리스트가 들어있는 경우 탐색
+        for val in data.values():
+            if isinstance(val, list):
+                return val
+    return []
+
+# 3. 데이터 분석 및 결과 출력 로직
 if following_file and followers_file:
     try:
-        following_data = json.load(following_file)
-        followers_data = json.load(followers_file)
+        following_raw = json.load(following_file)
+        followers_raw = json.load(followers_file)
+        
+        # 파일 구조에 맞게 데이터를 안전하게 변환
+        following_data = get_instagram_list(following_raw, 'following')
+        followers_data = get_instagram_list(followers_raw, 'followers')
         
         following_list = []
-        if 'relationships_following' in following_data:
-            for item in following_data['relationships_following']:
+        for item in following_data:
+            try:
                 following_list.append(item['string_list_data'][0]['value'])
+            except (KeyError, IndexError, TypeError):
+                continue
                 
         followers_list = []
-        # 어제 성공했던 리스트 순회 파싱 공식 그대로 유지
         for item in followers_data:
-            followers_list.append(item['string_list_data'][0]['value'])
+            try:
+                followers_list.append(item['string_list_data'][0]['value'])
+            except (KeyError, IndexError, TypeError):
+                continue
         
-        # 맞팔 안 한 사람 계산
+        # 맞팔 안 한 사람 계산 (어제 성공했던 핵심 로직)
         unfollowers = list(set(following_list) - set(followers_list))
         
         st.markdown("---")
@@ -51,4 +76,4 @@ if following_file and followers_file:
             st.success("🎉 축하합니다! 내가 팔로우한 모든 사람이 회원님을 맞팔하고 있습니다.")
             
     except Exception as e:
-        st.error("파일을 분석하는 중에 오류가 발생했습니다. 인스타그램에서 다운로드한 원본 JSON 파일이 맞는지 확인해 주세요.")
+        st.error(f"파일을 분석하는 중에 오류가 발생했습니다. 인스타그램 원본 JSON 파일이 맞는지 확인해 주세요. (에러 내용: {e})")
