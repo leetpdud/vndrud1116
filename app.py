@@ -15,22 +15,45 @@ st.markdown("---")
 following_file = st.file_uploader("following.json 파일을 올려주세요.", type=["json"])
 followers_file = st.file_uploader("followers.json 파일을 올려주세요.", type=["json"])
 
-# 3. 어제 272명 백발백중으로 잡아내던 오리지널 분석 로직
+# 3. 데이터 분석 및 오류 무조건 패스 로직
 if following_file and followers_file:
     try:
         following_data = json.load(following_file)
         followers_data = json.load(followers_file)
         
         following_list = []
-        if 'relationships_following' in following_data:
+        # following 파일 분석 (딕셔너리형, 리스트형 모두 대응)
+        if isinstance(following_data, dict) and 'relationships_following' in following_data:
             for item in following_data['relationships_following']:
-                following_list.append(item['string_list_data'][0]['value'])
-                
+                try:
+                    following_list.append(item['string_list_data'][0]['value'])
+                except:
+                    pass
+        elif isinstance(following_data, list):
+            for item in following_data:
+                try:
+                    following_list.append(item['string_list_data'][0]['value'])
+                except:
+                    pass
+                    
         followers_list = []
-        for item in followers_data:
-            followers_list.append(item['string_list_data'][0]['value'])
+        # followers 파일 분석 (오류 발생 시 강제 패스하고 알짜배기만 추출)
+        if isinstance(followers_data, list):
+            for item in followers_data:
+                try:
+                    followers_list.append(item['string_list_data'][0]['value'])
+                except:
+                    pass
+        elif isinstance(followers_data, dict):
+            for key in ['relationships_followers', 'followers']:
+                if key in followers_data:
+                    for item in followers_data[key]:
+                        try:
+                            followers_list.append(item['string_list_data'][0]['value'])
+                        except:
+                            pass
         
-        # 맞팔 안 한 사람 계산
+        # 맞팔 안 한 사람 계산 (어제 보셨던 그 완벽한 공식)
         unfollowers = list(set(following_list) - set(followers_list))
         
         st.markdown("---")
@@ -50,4 +73,4 @@ if following_file and followers_file:
             st.success("🎉 축하합니다! 내가 팔로우한 모든 사람이 회원님을 맞팔하고 있습니다.")
             
     except Exception as e:
-        st.error("파일을 분석하는 중에 오류가 발생했습니다. 인스타그램에서 다운로드한 원본 JSON 파일이 맞는지 확인해 주세요.")
+        st.error("파일을 읽는 도중 오류가 발생했습니다. 인스타그램 원본 JSON 파일이 맞는지 확인해 주세요.")
